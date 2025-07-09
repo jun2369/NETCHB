@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     body {
-      background-image: url('https://i.pinimg.com/1200x/4b/d0/fb/4bd0fb4efdbbf4a03a4e32b72ad7819f.jpg');
+      background-image: url('https://wp-s.ru/wallpapers/15/17/343836818661375/blue-background-for-texture.jpg');
       background-size: cover;
       background-repeat: no-repeat;
       background-position: center;
@@ -133,112 +133,126 @@ function removeFile() {
 }
 
 async function handleProcess() {
-  if (!userWorkbook) {
-    alert("Please upload a file first.");
-    return;
-  }
+  try {
+    document.getElementById('fileName').innerText = "⏳ Processing... please wait";
 
-  const selectedClient = document.getElementById('clientSelect').value;
-  if (!selectedClient) {
-    alert("Please select a Client (Shein or Temu) before proceeding.");
-    return;
-  }
+    setTimeout(async () => {
+      if (!userWorkbook) return alert("Please upload a file first.");
+      const selectedClient = document.getElementById('clientSelect').value;
+      if (!selectedClient) return alert("Please select a Client (Shein or Temu) before proceeding.");
 
-  const templateWorkbook = await fetchAndReadXLSX(templateURL);
-  const outputWorkbook = XLSX.utils.book_new();
+      const templateWorkbook = await fetchAndReadXLSX(templateURL);
+      const outputWorkbook = XLSX.utils.book_new();
+      const userSheet = userWorkbook.Sheets[userWorkbook.SheetNames[0]];
+      const templateSheet = templateWorkbook.Sheets[templateWorkbook.SheetNames[0]];
+      const newSheet = {};
 
-  const userSheet = userWorkbook.Sheets[userWorkbook.SheetNames[0]];
-  const templateSheet = templateWorkbook.Sheets[templateWorkbook.SheetNames[0]];
-  const newSheet = {};
+      const totalCols = 128;
+      const totalColLetters = Array.from({ length: totalCols }, (_, i) => XLSX.utils.encode_col(i));
+      const startRow = 11;
+      const endRow = findLastDataRow(userSheet, 'A', startRow);
+      const dataRowCount = endRow - startRow + 1;
+      const totalRows = dataRowCount + 1;
 
-  const totalCols = 128;
-  const totalColLetters = Array.from({ length: totalCols }, (_, i) => XLSX.utils.encode_col(i));
-  const startRow = 11;
-  const endRow = findLastDataRow(userSheet, 'A', startRow);
-  const dataRowCount = endRow - startRow + 1;
-  const totalRows = dataRowCount + 1;
+      
 
-  for (let colLetter of totalColLetters) {
-    const isFixed = FIXED_COLUMNS.includes(colLetter);
-    const targetFromUpload = Object.entries(MAPPING_COLUMNS).find(([, tgt]) => tgt === colLetter);
+      const BOLD_HEADER_COLS = ['K', 'L', 'AJ', 'AN', 'AQ'];
 
-    for (let r = 2; r <= totalRows; r++) {
-      const srcRow = startRow + r - 2;
-      if (r === 2) {
+      for (let colLetter of totalColLetters) {
         const headerCell = templateSheet[`${colLetter}1`];
-        if (headerCell) newSheet[`${colLetter}1`] = { ...headerCell };
+        if (headerCell) {
+          const isBold = BOLD_HEADER_COLS.includes(colLetter);
+          newSheet[`${colLetter}1`] = {
+            t: 's',
+            v: String(headerCell.v || ''),
+            s: isBold ? { font: { bold: true } }: undefined
+          };
+        }
       }
 
-      if (colLetter === 'E') {
-        const value = selectedClient === 'Shein' ? '2567947' : selectedClient === 'Temu' ? '2567704' : '';
-        newSheet[`E${r}`] = { t: 's', v: value };
-        continue;
+      
+
+      for (let colLetter of totalColLetters) {
+        const isFixed = FIXED_COLUMNS.includes(colLetter);
+        const targetFromUpload = Object.entries(MAPPING_COLUMNS).find(([, tgt]) => tgt === colLetter);
+        if (!isFixed && !targetFromUpload && colLetter !== 'E') continue;
+
+        for (let r = 2; r <= totalRows; r++) {
+          const srcRow = startRow + r - 2;
+
+          if (colLetter === 'E') {
+            const value = selectedClient === 'Shein' ? '2567947' : selectedClient === 'Temu' ? '2567704' : '';
+            newSheet[`E${r}`] = { t: 's', v: value };
+          } else if (isFixed) {
+            const baseValue = templateSheet[`${colLetter}2`]?.v || '';
+            newSheet[`${colLetter}${r}`] = { t: 's', v: String(baseValue) };
+          } else if (targetFromUpload) {
+            const srcColLetter = targetFromUpload[0];
+            const cellValue = userSheet[`${srcColLetter}${srcRow}`]?.v || '';
+            newSheet[`${colLetter}${r}`] = { t: 's', v: String(cellValue) };
+          }
+        }
       }
 
-      if (isFixed) {
-        const baseCell = templateSheet[`${colLetter}2`] || { t: 's', v: '' };
-        newSheet[`${colLetter}${r}`] = { ...baseCell };
-      } else if (targetFromUpload) {
-        const srcColLetter = targetFromUpload[0];
-        const valueCell = userSheet[`${srcColLetter}${srcRow}`];
-        newSheet[`${colLetter}${r}`] = valueCell ? { ...valueCell } : { t: 's', v: '' };
-      } else {
-        newSheet[`${colLetter}${r}`] = { t: 's', v: '' };
+      for (let r = 2; r <= totalRows; r++) {
+        const srcRow = startRow + r - 2;
+        newSheet[`AO${r}`] = { t: 's', v: userSheet[`D${srcRow}`]?.v || '' };
+        newSheet[`AC${r}`] = { t: 's', v: userSheet[`E${srcRow}`]?.v || '' };
+        newSheet[`AK${r}`] = { t: 's', v: userSheet[`E${srcRow}`]?.v || '' };
+        newSheet[`O${r}`]  = { t: 's', v: userSheet[`H${srcRow}`]?.v || '' };
+        newSheet[`Q${r}`]  = { t: 's', v: userSheet[`J${srcRow}`]?.v || '' };
+
+        if (selectedClient === 'Shein') {
+          newSheet[`BF${r}`] = { t: 's', v: userSheet[`O${srcRow}`]?.v || '' };
+        }
       }
-    }
+
+      for (let r = 2; r <= totalRows; r++) {
+        const srcRow = startRow + r - 2;
+        const valueC = userSheet[`C${srcRow}`]?.v || '';
+        newSheet[`G${r}`] = { t: 's', v: String(valueC) };
+      }
+
+      const cellU9 = userSheet['U9']?.v ? String(userSheet['U9'].v) : '';
+      const cellL9 = userSheet['L9']?.v ? String(userSheet['L9'].v) : '';
+      const cellF9 = userSheet['F9']?.v ? String(userSheet['F9'].v) : '';
+      for (let r = 2; r <= totalRows; r++) {
+        newSheet[`AH${r}`] = { t: 's', v: cellU9.slice(0, 3) };
+        newSheet[`AI${r}`] = { t: 's', v: cellU9.slice(-8) };
+        newSheet[`AB${r}`] = { t: 's', v: cellL9 };
+        newSheet[`AS${r}`] = { t: 's', v: cellF9.slice(0, 2) };
+        newSheet[`AT${r}`] = { t: 's', v: cellF9.slice(2) };
+      }
+
+      const rawCity = userSheet['B9']?.v ? String(userSheet['B9'].v).toUpperCase().trim() : '';
+      const cityCode = rawCity === 'HONG KONG' ? 'HK' : 'CN';
+      for (let r = 2; r <= totalRows; r++) {
+        newSheet[`AP${r}`] = { t: 's', v: cityCode };
+      }
+
+      const groupSize = 998;
+      for (let r = 2; r <= totalRows; r++) {
+        const groupNumber = Math.ceil((r - 1) / groupSize);
+        newSheet[`C${r}`] = { t: 's', v: String(groupNumber) };
+      }
+
+      newSheet["!ref"] = `A1:DX${totalRows}`;
+      XLSX.utils.book_append_sheet(outputWorkbook, newSheet, "Result");
+
+      const u9Value = userSheet['U9']?.v ? String(userSheet['U9'].v).trim() : 'Unknown';
+      const fileName = `${u9Value} NETCHB converted.xlsx`;
+      XLSX.writeFile(outputWorkbook, fileName, { compression: true });
+
+      // 清除状态
+      document.getElementById('fileName').innerText = "";
+      document.getElementById('removeBtn').style.display = "none";
+      document.getElementById('inputFile').value = "";
+      userWorkbook = null;
+    }, 0);
+  } catch (err) {
+    alert("❌ An error occurred while processing the file.\nDetails: " + err.message);
+    console.error("Conversion error:", err);
   }
-
-  for (let r = 2; r <= totalRows; r++) {
-    const srcRow = startRow + r - 2;
-
-    newSheet[`AO${r}`] = { t: 's', v: userSheet[`D${srcRow}`]?.v || '' };
-    newSheet[`AC${r}`] = { t: 's', v: userSheet[`E${srcRow}`]?.v || '' };
-    newSheet[`AK${r}`] = { t: 's', v: userSheet[`E${srcRow}`]?.v || '' };
-    newSheet[`O${r}`]  = { t: 's', v: userSheet[`H${srcRow}`]?.v || '' };
-    newSheet[`Q${r}`]  = { t: 's', v: userSheet[`J${srcRow}`]?.v || '' };
-    newSheet[`BF${r}`] = { t: 's', v: userSheet[`O${srcRow}`]?.v || '' };
-  }
-
-  const rawH9 = userSheet['H9']?.v ? new Date(userSheet['H9'].v) : null;
-  const formattedDate = rawH9 ? `${(rawH9.getMonth()+1).toString().padStart(2,'0')}/${rawH9.getDate().toString().padStart(2,'0')}/${rawH9.getFullYear()}` : '';
-  for (let r = 2; r <= totalRows; r++) {
-    newSheet[`K${r}`] = { t: 's', v: formattedDate };
-    newSheet[`L${r}`] = { t: 's', v: formattedDate };
-    newSheet[`AN${r}`] = { t: 's', v: formattedDate };
-    newSheet[`AQ${r}`] = { t: 's', v: formattedDate };
-  }
-
-  const cellU9 = userSheet['U9']?.v ? String(userSheet['U9'].v) : '';
-  const cellL9 = userSheet['L9']?.v ? String(userSheet['L9'].v) : '';
-  const cellF9 = userSheet['F9']?.v ? String(userSheet['F9'].v) : '';
-  for (let r = 2; r <= totalRows; r++) {
-    newSheet[`AH${r}`] = { t: 's', v: cellU9.slice(0, 3) };
-    newSheet[`AI${r}`] = { t: 's', v: cellU9.slice(-8) };
-    newSheet[`AB${r}`] = { t: 's', v: cellL9 };
-    newSheet[`AS${r}`] = { t: 's', v: cellF9.slice(0, 2) };
-    newSheet[`AT${r}`] = { t: 's', v: cellF9.slice(2) };
-  }
-
-  const rawCity = userSheet['B9']?.v ? String(userSheet['B9'].v).toUpperCase().trim() : '';
-  const cityCode = rawCity === 'HONG KONG' ? 'HK' : 'CN';
-  for (let r = 2; r <= totalRows; r++) {
-    newSheet[`AP${r}`] = { t: 's', v: cityCode };
-  }
-
-  const groupSize = 998;
-  for (let r = 2; r <= totalRows; r++) {
-    const groupNumber = Math.ceil((r - 1) / groupSize);
-    newSheet[`C${r}`] = { t: 's', v: String(groupNumber) };
-  }
-
-  newSheet["!ref"] = `A1:DX${totalRows}`;
-  XLSX.utils.book_append_sheet(outputWorkbook, newSheet, "Result");
-  XLSX.writeFile(outputWorkbook, "NETCHB_Export.xlsx");
-
-  document.getElementById('fileName').innerText = "";
-  document.getElementById('removeBtn').style.display = "none";
-  document.getElementById('inputFile').value = "";
-  userWorkbook = null;
 }
 
 async function fetchAndReadXLSX(url) {

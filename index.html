@@ -21,7 +21,7 @@
       font-size: 50px;
       margin-top: 10px;
       text-align: center;
-      color: purple;
+      color: white;
     }
 
     button {
@@ -92,9 +92,11 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script>
 
+// ✅ JavaScript for NETCHB Manifest Converter with updated logic for Q3~Q6 columns
+
 const templateURL = "https://jun2369.github.io/MAWBchangenew/NETCHB%20template001.xlsx";
 
-const FIXED_COLUMNS = ['B', 'D', 'E', 'F', 'J', 'M', 'V', 'W', 'X', 'Z', 'AA', 'AL', 'AR', 'AU', 'AV', 'AW', 'AX'];
+const FIXED_COLUMNS = ['B', 'D', 'E', 'F', 'M', 'AL', 'AV']; // Removed V, W, X, Z, AA
 const MAPPING_COLUMNS = {
   'B': 'H',
   'D': 'AO',
@@ -134,12 +136,13 @@ function removeFile() {
 
 async function handleProcess() {
   try {
-    document.getElementById('fileName').innerText = "⏳ Processing... please wait";
 
     setTimeout(async () => {
       if (!userWorkbook) return alert("Please upload a file first.");
       const selectedClient = document.getElementById('clientSelect').value;
       if (!selectedClient) return alert("Please select a Client (Shein or Temu) before proceeding.");
+      
+      document.getElementById('fileName').innerText = "⏳ Processing... please wait";
 
       const templateWorkbook = await fetchAndReadXLSX(templateURL);
       const outputWorkbook = XLSX.utils.book_new();
@@ -154,10 +157,7 @@ async function handleProcess() {
       const dataRowCount = endRow - startRow + 1;
       const totalRows = dataRowCount + 1;
 
-      
-
       const BOLD_HEADER_COLS = ['K', 'L', 'AJ', 'AN', 'AQ'];
-
       for (let colLetter of totalColLetters) {
         const headerCell = templateSheet[`${colLetter}1`];
         if (headerCell) {
@@ -165,12 +165,40 @@ async function handleProcess() {
           newSheet[`${colLetter}1`] = {
             t: 's',
             v: String(headerCell.v || ''),
-            s: isBold ? { font: { bold: true } }: undefined
+            s: isBold ? { font: { bold: true } } : undefined
           };
         }
       }
 
-      
+      const d9Value = userSheet['D9']?.v?.toString().trim().toUpperCase() || '';
+      let jValue = '', arValue = '', auValue = '', awValue = '', axValue = '';
+
+      if (["MIA", "MIAMI INTERNATIONAL AIRPORT"].includes(d9Value)) {
+        jValue = '5206'; arValue = 'LEG0'; auValue = '5206'; awValue = '5206'; axValue = 'FL';
+      } else if (["ORD", "CHICAGO O'HARE INTERNATIONAL AIRPORT"].includes(d9Value)) {
+        jValue = '3901'; arValue = 'HBT1'; auValue = '3901'; awValue = '3901'; axValue = 'IL';
+      } else if (["JFK", "JOHN F. KENNEDY INTERNATIONAL AIRPORT"].includes(d9Value)) {
+        jValue = '4701'; arValue = 'EAT5'; auValue = '4701'; awValue = '4701'; axValue = 'NY';
+      } else if (["LAX", "LOS ANGELES INTERNATIONAL AIRPORT"].includes(d9Value)) {
+        jValue = '2720'; arValue = 'WBH9'; auValue = '2720'; awValue = '2720'; axValue = 'CA';
+      } else if (["SFO", "SAN FRANCISCO INTERNATIONAL AIRPORT"].includes(d9Value)) {
+        jValue = '2801'; arValue = 'W0B3'; auValue = '2801'; awValue = '2801'; axValue = 'CA';
+      }
+
+      const q3 = userSheet['Q3']?.v?.toString().split(":")[1]?.replace(/[.,]/g, " ").trim() || '';
+      const q4 = userSheet['Q4']?.v?.toString().split(":")[1]?.trim() || '';
+      const q5 = userSheet['Q5']?.v?.toString().split(":")[1]?.trim() || '';
+      const q6 = userSheet['Q6']?.v?.toString().split(":")[1]?.trim() || '';
+      let wValue = '', xValue = '', aaValue = '';
+      if (q4.slice(-4).toLowerCase() === "kong") {
+        wValue = "Unit 417, 4/F Lippo Ctr Tower Two, No.89 Queensway, Admiralty";
+        xValue = "Admiralty";
+      } else if (q4.slice(-4).toLowerCase() === "pore") {
+        wValue = "12 Marina Boulevard  #15-01  Marina Bay Financial Centre";
+        xValue = "Marina Bay Financial Centre";
+      }
+      if (q6 === "China") aaValue = "CN";
+      else if (q6 === "Singapore") aaValue = "SG";
 
       for (let colLetter of totalColLetters) {
         const isFixed = FIXED_COLUMNS.includes(colLetter);
@@ -179,7 +207,6 @@ async function handleProcess() {
 
         for (let r = 2; r <= totalRows; r++) {
           const srcRow = startRow + r - 2;
-
           if (colLetter === 'E') {
             const value = selectedClient === 'Shein' ? '2567947' : selectedClient === 'Temu' ? '2567704' : '';
             newSheet[`E${r}`] = { t: 's', v: value };
@@ -201,16 +228,23 @@ async function handleProcess() {
         newSheet[`AK${r}`] = { t: 's', v: userSheet[`E${srcRow}`]?.v || '' };
         newSheet[`O${r}`]  = { t: 's', v: userSheet[`H${srcRow}`]?.v || '' };
         newSheet[`Q${r}`]  = { t: 's', v: userSheet[`J${srcRow}`]?.v || '' };
+        newSheet[`G${r}`]  = { t: 's', v: userSheet[`C${srcRow}`]?.v || '' };
 
         if (selectedClient === 'Shein') {
           newSheet[`BF${r}`] = { t: 's', v: userSheet[`O${srcRow}`]?.v || '' };
         }
-      }
 
-      for (let r = 2; r <= totalRows; r++) {
-        const srcRow = startRow + r - 2;
-        const valueC = userSheet[`C${srcRow}`]?.v || '';
-        newSheet[`G${r}`] = { t: 's', v: String(valueC) };
+        newSheet[`J${r}`] = { t: 's', v: jValue };
+        newSheet[`AR${r}`] = { t: 's', v: arValue };
+        newSheet[`AU${r}`] = { t: 's', v: auValue };
+        newSheet[`AW${r}`] = { t: 's', v: awValue };
+        newSheet[`AX${r}`] = { t: 's', v: axValue };
+
+        newSheet[`V${r}`] = { t: 's', v: q3 };
+        newSheet[`W${r}`] = { t: 's', v: wValue };
+        newSheet[`X${r}`] = { t: 's', v: xValue };
+        newSheet[`Z${r}`] = { t: 's', v: q5 };
+        newSheet[`AA${r}`] = { t: 's', v: aaValue };
       }
 
       const cellU9 = userSheet['U9']?.v ? String(userSheet['U9'].v) : '';
@@ -243,7 +277,6 @@ async function handleProcess() {
       const fileName = `${u9Value} NETCHB converted.xlsx`;
       XLSX.writeFile(outputWorkbook, fileName, { compression: true });
 
-      // 清除状态
       document.getElementById('fileName').innerText = "";
       document.getElementById('removeBtn').style.display = "none";
       document.getElementById('inputFile').value = "";
@@ -268,6 +301,7 @@ function findLastDataRow(sheet, colLetter, startRow) {
   }
   return row - 1;
 }
+
 
 </script>
 </body>

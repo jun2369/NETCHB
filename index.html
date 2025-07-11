@@ -181,10 +181,7 @@ async function handleProcess() {
           };
         }
       }
-      newSheet['DY1'] = { t: 's', v: 'message error' };
-      newSheet['DY2'] = { t: 's', v: '✅ TEST DY2' };
-
- 
+      newSheet['DY1'] = { t: 's', v: 'Error Messages' };
       const d9Value = userSheet['D9']?.v?.toString().trim().toUpperCase() || '';
       let jValue = '', arValue = '', auValue = '', awValue = '', axValue = '';
  
@@ -258,7 +255,15 @@ async function handleProcess() {
         newSheet[`V${r}`] = { t: 's', v: q3 };
         newSheet[`W${r}`] = { t: 's', v: wValue };
         newSheet[`X${r}`] = { t: 's', v: xValue };
-        newSheet[`Z${r}`] = { t: 's', v: q5 };
+        
+        const rawQ5 = userSheet['Q5']?.v?.toString().trim() || '';
+        const q5Suffix = rawQ5.split(':')[1]?.trim() || '';
+        const isQ5OnlyZeros = q5Suffix && /^0+$/.test(q5Suffix);
+
+        if (!isQ5OnlyZeros) {
+          newSheet[`Z${r}`] = { t: 's', v: q5Suffix };
+        }
+        
         newSheet[`AA${r}`] = { t: 's', v: aaValue };
       }
  
@@ -274,30 +279,37 @@ async function handleProcess() {
       }
       
       for (let r = 2; r <= totalRows; r++) {
-        const pCellValue = newSheet['P' + r]?.v?.toString().trim() || '';
-
-
-        let msg = '';
-        if (!pCellValue) {
-          msg = 'manufacture_address is required, must be between 3 and 255 characters, and cannot contain Chinese characters';
-        } else if (pCellValue.length < 3 || pCellValue.length > 255 || /[\u4e00-\u9fa5]/.test(pCellValue)) {
-          msg = 'manufacture_address is required, must be between 3 and 255 characters, and cannot contain Chinese characters';
+        const msgList =[];
+        
+        // P列 校验
+        const pRaw = newSheet['P' + r]?.v;
+        const pCellValue = typeof pRaw === 'string' ? pRaw.trim() : pRaw?.toString().trim() || '';
+        if (!pCellValue || pCellValue.length < 3 || pCellValue.length > 255 || /[\u4e00-\u9fa5]/.test(pCellValue)) {
+          msgList.push('manufacture_address is required, must be between 3 and 255 characters, and cannot contain Chinese characters');
         }
-        newSheet['DY' + r] = { t: 's', v: msg };
-      }
-      
-      for (let r = 2; r <= totalRows; r++) {
+
+        // O列 校验
+        const oRaw = newSheet['O' + r]?.v;
+        const oCellValue = typeof oRaw === 'string' ? oRaw.trim() : oRaw?.toString().trim() || '';
+        if (!oCellValue || oCellValue.length < 3 || oCellValue.length > 100 || /[\u4e00-\u9fa5]/.test(oCellValue)) {
+          msgList.push('manufacture_name is required, must be between 3 and 100 characters, and cannot contain Chinese characters');
+        }
+
+        // T列 校验
         const tCellValue = newSheet['T' + r]?.v?.toString().trim() || '';
-
-
-        let msg = '';
-        if (tCellValue.length !== 6 || !/^\d{6}$/.test(tCellValue)) {
-          msg = 'manufacture_zip_code must be 6 digits';
+        const sCellValue = newSheet['S' + r]?.v?.toString().trim() || '';
+        const isDigits = /^\d+$/.test(tCellValue);
+        const isValidLength = tCellValue.length === 6 || (sCellValue === 'SG' && tCellValue.length === 7);
+        const isExceptionallyInvalid = tCellValue === '000000';
+        if (!isValidLength || !isDigits || isExceptionallyInvalid) {
+          msgList.push('manufacture_zip_code must be 6 digits or cannot be all zero');
         }
-        newSheet['DY' + r] = { t: 's', v: msg };
+
+        // 合并并写入 DY 列（多个错误以 ; 空格隔开）
+        newSheet['DY' + r] = { t: 's', v: msgList.join('; ') };
       }
+
       
- 
       const rawCity = userSheet['B9']?.v ? String(userSheet['B9'].v).toUpperCase().trim() : '';
       const cityCode = rawCity === 'HONG KONG' ? 'HK' : 'CN';
       for (let r = 2; r <= totalRows; r++) {

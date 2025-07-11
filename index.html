@@ -105,9 +105,9 @@
   <script>
 
 // ✅ JavaScript for NETCHB Manifest Converter with updated logic for Q3~Q6 columns
-
+ 
 const templateURL = "https://jun2369.github.io/MAWBchangenew/NETCHB%20template001.xlsx";
-
+ 
 const FIXED_COLUMNS = ['B', 'D', 'E', 'F', 'M', 'AL', 'AV']; // Removed V, W, X, Z, AA
 const MAPPING_COLUMNS = {
   'B': 'H',
@@ -121,9 +121,9 @@ const MAPPING_COLUMNS = {
   'L': 'T',
   'C': 'AM',
 };
-
+ 
 let userWorkbook = null;
-
+ 
 function handleFileSelected() {
   const input = document.getElementById('inputFile');
   const file = input.files[0];
@@ -138,37 +138,37 @@ function handleFileSelected() {
     reader.readAsArrayBuffer(file);
   }
 }
-
+ 
 function removeFile() {
   userWorkbook = null;
   document.getElementById('inputFile').value = "";
   document.getElementById('fileName').innerText = "";
   document.getElementById('removeBtn').style.display = "none";
 }
-
+ 
 async function handleProcess() {
   try {
-
+ 
     setTimeout(async () => {
       if (!userWorkbook) return alert("Please upload a file first.");
       const selectedClient = document.getElementById('clientSelect').value;
       if (!selectedClient) return alert("Please select a Client (Shein or Temu) before proceeding.");
-      
+     
       document.getElementById('fileName').innerText = "⏳ Processing... please wait";
-
+ 
       const templateWorkbook = await fetchAndReadXLSX(templateURL);
       const outputWorkbook = XLSX.utils.book_new();
       const userSheet = userWorkbook.Sheets[userWorkbook.SheetNames[0]];
       const templateSheet = templateWorkbook.Sheets[templateWorkbook.SheetNames[0]];
       const newSheet = {};
-
+ 
       const totalCols = 128;
       const totalColLetters = Array.from({ length: totalCols }, (_, i) => XLSX.utils.encode_col(i));
       const startRow = 11;
       const endRow = findLastDataRow(userSheet, 'A', startRow);
       const dataRowCount = endRow - startRow + 1;
       const totalRows = dataRowCount + 1;
-
+ 
       const BOLD_HEADER_COLS = ['K', 'L', 'AJ', 'AN', 'AQ'];
       for (let colLetter of totalColLetters) {
         const headerCell = templateSheet[`${colLetter}1`];
@@ -181,10 +181,13 @@ async function handleProcess() {
           };
         }
       }
+      newSheet['DY1'] = { t: 's', v: 'message error' };
+      newSheet['DY2'] = { t: 's', v: '✅ TEST DY2' };
 
+ 
       const d9Value = userSheet['D9']?.v?.toString().trim().toUpperCase() || '';
       let jValue = '', arValue = '', auValue = '', awValue = '', axValue = '';
-
+ 
       if (["MIA", "MIAMI INTERNATIONAL AIRPORT"].includes(d9Value)) {
         jValue = '5206'; arValue = 'LEG0'; auValue = '5206'; awValue = '5206'; axValue = 'FL';
       } else if (["ORD", "CHICAGO O'HARE INTERNATIONAL AIRPORT"].includes(d9Value)) {
@@ -196,7 +199,7 @@ async function handleProcess() {
       } else if (["SFO", "SAN FRANCISCO INTERNATIONAL AIRPORT"].includes(d9Value)) {
         jValue = '2801'; arValue = 'W0B3'; auValue = '2801'; awValue = '2801'; axValue = 'CA';
       }
-
+ 
       const q3 = userSheet['Q3']?.v?.toString().split(":")[1]?.replace(/[.,]/g, " ").trim() || '';
       const q4 = userSheet['Q4']?.v?.toString().split(":")[1]?.trim() || '';
       const q5 = userSheet['Q5']?.v?.toString().split(":")[1]?.trim() || '';
@@ -211,12 +214,12 @@ async function handleProcess() {
       }
       if (q6 === "China") aaValue = "CN";
       else if (q6 === "Singapore") aaValue = "SG";
-
+ 
       for (let colLetter of totalColLetters) {
         const isFixed = FIXED_COLUMNS.includes(colLetter);
         const targetFromUpload = Object.entries(MAPPING_COLUMNS).find(([, tgt]) => tgt === colLetter);
         if (!isFixed && !targetFromUpload && colLetter !== 'E') continue;
-
+ 
         for (let r = 2; r <= totalRows; r++) {
           const srcRow = startRow + r - 2;
           if (colLetter === 'E') {
@@ -232,7 +235,7 @@ async function handleProcess() {
           }
         }
       }
-
+ 
       for (let r = 2; r <= totalRows; r++) {
         const srcRow = startRow + r - 2;
         newSheet[`AO${r}`] = { t: 's', v: userSheet[`D${srcRow}`]?.v || '' };
@@ -241,24 +244,24 @@ async function handleProcess() {
         newSheet[`O${r}`]  = { t: 's', v: userSheet[`H${srcRow}`]?.v || '' };
         newSheet[`Q${r}`]  = { t: 's', v: userSheet[`J${srcRow}`]?.v || '' };
         newSheet[`G${r}`]  = { t: 's', v: userSheet[`C${srcRow}`]?.v || '' };
-
+ 
         if (selectedClient === 'Shein') {
           newSheet[`BF${r}`] = { t: 's', v: userSheet[`O${srcRow}`]?.v || '' };
         }
-
+ 
         newSheet[`J${r}`] = { t: 's', v: jValue };
         newSheet[`AR${r}`] = { t: 's', v: arValue };
         newSheet[`AU${r}`] = { t: 's', v: auValue };
         newSheet[`AW${r}`] = { t: 's', v: awValue };
         newSheet[`AX${r}`] = { t: 's', v: axValue };
-
+ 
         newSheet[`V${r}`] = { t: 's', v: q3 };
         newSheet[`W${r}`] = { t: 's', v: wValue };
         newSheet[`X${r}`] = { t: 's', v: xValue };
         newSheet[`Z${r}`] = { t: 's', v: q5 };
         newSheet[`AA${r}`] = { t: 's', v: aaValue };
       }
-
+ 
       const cellU9 = userSheet['U9']?.v ? String(userSheet['U9'].v) : '';
       const cellL9 = userSheet['L9']?.v ? String(userSheet['L9'].v) : '';
       const cellF9 = userSheet['F9']?.v ? String(userSheet['F9'].v) : '';
@@ -269,26 +272,51 @@ async function handleProcess() {
         newSheet[`AS${r}`] = { t: 's', v: cellF9.slice(0, 2) };
         newSheet[`AT${r}`] = { t: 's', v: cellF9.slice(2) };
       }
+      
+      for (let r = 2; r <= totalRows; r++) {
+        const pCellValue = newSheet['P' + r]?.v?.toString().trim() || '';
 
+
+        let msg = '';
+        if (!pCellValue) {
+          msg = 'manufacture_address is required, must be between 3 and 255 characters, and cannot contain Chinese characters';
+        } else if (pCellValue.length < 3 || pCellValue.length > 255 || /[\u4e00-\u9fa5]/.test(pCellValue)) {
+          msg = 'manufacture_address is required, must be between 3 and 255 characters, and cannot contain Chinese characters';
+        }
+        newSheet['DY' + r] = { t: 's', v: msg };
+      }
+      
+      for (let r = 2; r <= totalRows; r++) {
+        const tCellValue = newSheet['T' + r]?.v?.toString().trim() || '';
+
+
+        let msg = '';
+        if (tCellValue.length !== 6 || !/^\d{6}$/.test(tCellValue)) {
+          msg = 'manufacture_zip_code must be 6 digits';
+        }
+        newSheet['DY' + r] = { t: 's', v: msg };
+      }
+      
+ 
       const rawCity = userSheet['B9']?.v ? String(userSheet['B9'].v).toUpperCase().trim() : '';
       const cityCode = rawCity === 'HONG KONG' ? 'HK' : 'CN';
       for (let r = 2; r <= totalRows; r++) {
         newSheet[`AP${r}`] = { t: 's', v: cityCode };
       }
-
+ 
       const groupSize = 998;
       for (let r = 2; r <= totalRows; r++) {
         const groupNumber = Math.ceil((r - 1) / groupSize);
         newSheet[`C${r}`] = { t: 's', v: String(groupNumber) };
       }
-
-      newSheet["!ref"] = `A1:DX${totalRows}`;
+ 
+      newSheet["!ref"] = `A1:DY${totalRows}`;
       XLSX.utils.book_append_sheet(outputWorkbook, newSheet, "Result");
-
+ 
       const u9Value = userSheet['U9']?.v ? String(userSheet['U9'].v).trim() : 'Unknown';
       const fileName = `${u9Value} NETCHB converted.xlsx`;
       XLSX.writeFile(outputWorkbook, fileName, { compression: true });
-
+ 
       document.getElementById('fileName').innerText = "";
       document.getElementById('removeBtn').style.display = "none";
       document.getElementById('inputFile').value = "";
@@ -299,13 +327,13 @@ async function handleProcess() {
     console.error("Conversion error:", err);
   }
 }
-
+ 
 async function fetchAndReadXLSX(url) {
   const response = await fetch(url);
   const buffer = await response.arrayBuffer();
   return XLSX.read(buffer, { type: 'array' });
 }
-
+ 
 function findLastDataRow(sheet, colLetter, startRow) {
   let row = startRow;
   while (sheet[`${colLetter}${row}`] && sheet[`${colLetter}${row}`].v) {
